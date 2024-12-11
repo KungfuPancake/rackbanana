@@ -1,0 +1,116 @@
+// SPDX-License-Identifier: (GPL-3.0)
+/*
+ * Copyright (C) 2024
+ * Author: Rene Koppe <rene@xargon.de>
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/leds/common.h>
+
+/ {
+	compatible = "bananapi,bpi-r4", "mediatek,mt7988a";
+
+	aliases {
+		uart2 = "/soc/serial@11000200";
+		pio = "/soc/pinctrl@1001f000";
+		pwm = "/soc/pwm@10048000";
+	};
+
+	fragment@0 {
+		target = <&uart2>;
+		__overlay__ {
+				status = "disabled";
+		};
+	};
+	
+	fragment@1 {
+		target = <&pio>;
+		__overlay__ {
+			pwm6_pins: pwm6-pins {
+				mux {
+					groups = "pwm6_0";
+					function = "pwm";
+				};
+			};
+		};
+	};
+	
+	fragment@2 {
+		target-path = "/";
+		__overlay__ {
+			lcd: backlight {
+				status = "okay";
+				compatible = "pwm-backlight";
+
+				pwms = <&pwm 6 50000 PWM_POLARITY_INVERTED>;
+
+				brightness-levels = <0 255>;
+				default-brightness-level = <128>;
+				num-interpolated-steps = <255>;
+
+				power-supply = <&reg_3p3v>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pwm6_pins>;
+			};
+		};
+	};
+	
+	fragment@3 {
+		target-path = "/soc/spi@11008000";
+		__overlay__ {
+			status = "okay";
+			
+			ili9341: ili9341@0 {
+				compatible = "adafruit,yx240qv29", "ilitek,ili9341";
+				reg = <0>; 
+				spi-max-frequency = <32000000>;
+				rotation = <270>;
+				reset-gpios = <&pio 53 GPIO_ACTIVE_HIGH>;
+				dc-gpios = <&pio 50 GPIO_ACTIVE_HIGH>;
+				backlight = <&lcd>;
+				status = "okay";
+			};
+		};
+	};
+	
+	fragment@4 {
+		target-path = "/gpio-keys";
+		__overlay__ {
+			up {
+				label = "left";
+				linux,code = <BTN_0>;
+				gpios = <&pio 59 GPIO_ACTIVE_LOW>;
+			};
+
+			down {
+				label = "right";
+				linux,code = <BTN_1>;
+				gpios = <&pio 58 GPIO_ACTIVE_LOW>;
+			};
+
+			enter {
+				label = "enter";
+				linux,code = <BTN_2>;
+				gpios = <&pio 61 GPIO_ACTIVE_LOW>;
+			};
+		};
+	};
+	
+	fragment@5 {
+		target-path = "/gpio-leds";
+		__overlay__ {
+			keypad {
+				function = LED_FUNCTION_BACKLIGHT;
+				color = <LED_COLOR_ID_WHITE>;
+				gpios = <&pio 60 GPIO_ACTIVE_HIGH>;
+				default-state = "on";
+				panic-indicator = "true";
+			};
+		};
+	};
+};
