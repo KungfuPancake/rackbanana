@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-3.0)
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Copyright (C) 2024
  * Author: Rene Koppe <rene@xargon.de>
@@ -11,6 +11,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	compatible = "bananapi,bpi-r4", "mediatek,mt7988a";
@@ -19,6 +20,7 @@
 		uart2 = "/soc/serial@11000200";
 		pio = "/soc/pinctrl@1001f000";
 		pwm = "/soc/pwm@10048000";
+		i2c1 = "/soc/i2c@11004000";
 	};
 
 	fragment@0 {
@@ -79,24 +81,20 @@
 	};
 	
 	fragment@4 {
-		target-path = "/gpio-keys";
+		target = <&i2c1>;
 		__overlay__ {
-			up {
-				label = "left";
-				linux,code = <BTN_0>;
-				gpios = <&pio 59 GPIO_ACTIVE_LOW>;
-			};
-
-			down {
-				label = "right";
-				linux,code = <BTN_1>;
-				gpios = <&pio 58 GPIO_ACTIVE_LOW>;
-			};
-
-			enter {
-				label = "enter";
-				linux,code = <BTN_2>;
-				gpios = <&pio 61 GPIO_ACTIVE_LOW>;
+			status = "okay";
+			
+			pca: gpio@20 {
+				compatible = "nxp,pca9534";
+				status = "okay";
+				reg = <0x20>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&pio>;
+				interrupts = <59 IRQ_TYPE_EDGE_FALLING>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 		};
 	};
@@ -104,12 +102,62 @@
 	fragment@5 {
 		target-path = "/gpio-leds";
 		__overlay__ {
-			keypad {
-				function = LED_FUNCTION_BACKLIGHT;
+			left-white {
+				function = LED_FUNCTION_KBD_BACKLIGHT;
 				color = <LED_COLOR_ID_WHITE>;
-				gpios = <&pio 60 GPIO_ACTIVE_HIGH>;
+				gpios = <&pca 3 GPIO_ACTIVE_LOW>;
+				default-state = "on";
+				label = "left_button_white";
+			};
+			
+			right-white {
+				function = LED_FUNCTION_KBD_BACKLIGHT;
+				color = <LED_COLOR_ID_WHITE>;
+				gpios = <&pca 4 GPIO_ACTIVE_LOW>;
+				default-state = "on";
+				label = "right_button_white";
+			};
+			
+			enter-white {
+				function = LED_FUNCTION_KBD_BACKLIGHT;
+				color = <LED_COLOR_ID_WHITE>;
+				gpios = <&pca 5 GPIO_ACTIVE_LOW>;
 				default-state = "on";
 				panic-indicator = "true";
+				label = "enter_button_white";
+			};
+			
+			enter-red {
+				function = LED_FUNCTION_HEARTBEAT;
+				color = <LED_COLOR_ID_WHITE>;
+				gpios = <&pca 6 GPIO_ACTIVE_LOW>;
+				default-state = "off";
+				panic-indicator = "true";
+				linux,default-trigger = "heartbeat";
+				label = "enter_button_red";
+			};
+		};
+	};
+	
+	fragment@6 {
+		target-path = "/gpio-keys";
+		__overlay__ {
+			left {
+				label = "left";
+				linux,code = <BTN_0>;
+				gpios = <&pca 0 GPIO_ACTIVE_LOW>;
+			};
+
+			right {
+				label = "right";
+				linux,code = <BTN_1>;
+				gpios = <&pca 1 GPIO_ACTIVE_LOW>;
+			};
+
+			enter {
+				label = "enter";
+				linux,code = <BTN_2>;
+				gpios = <&pca 2 GPIO_ACTIVE_LOW>;
 			};
 		};
 	};
